@@ -1,10 +1,8 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
           package="com.chiwek.activeprogress">
 
-    <!-- Merge into host app; app should also declare this if targeting Android 13+ -->
+    <!-- Host app should also declare this; keeping here for consumer merge -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
-    <application>
-        <!-- No components needed; pure in-process plugin -->
-    </application>
+    <application />
 </manifest>
