@@ -1,6 +1,6 @@
 {
   "name": "@chiwek/capacitor-active-progress",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "Capacitor plugin for active progress notifications (Android progress bar, iOS Live Activity planned).",
   "main": "dist/esm/index.js",
   "types": "dist/esm/index.d.ts",
