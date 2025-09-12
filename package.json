@@ -1,0 +1,34 @@
+{
+  "name": "@chiwek/capacitor-active-progress",
+  "version": "0.1.0",
+  "description": "Capacitor plugin for active progress notifications (Android progress bar, iOS Live Activity planned).",
+  "main": "dist/esm/index.js",
+  "types": "dist/esm/index.d.ts",
+  "files": [
+    "dist/",
+    "android/",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "clean": "rimraf dist"
+  },
+  "keywords": ["capacitor", "android", "notification", "progress", "live activity"],
+  "author": "Chiwek",
+  "license": "MIT",
+  "capacitor": {
+    "ios": {
+      "src": "ios"
+    },
+    "android": {
+      "src": "android"
+    }
+  },
+  "peerDependencies": {
+    "@capacitor/core": "^6.0.0 || ^7.0.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.6.0",
+    "rimraf": "^6.0.1"
+  }
+}
