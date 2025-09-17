@@ -1,0 +1,16 @@
+<resources>
+    <!-- card bg behind text -->
+    <color name="ap_bg">#1A000000</color> <!-- 10% black -->
+
+    <!-- text -->
+    <color name="ap_text_primary">#FFFFFFFF</color>
+    <color name="ap_text_secondary">#E6FFFFFF</color> <!-- 90% white -->
+    <color name="ap_text_hint">#B3FFFFFF</color>      <!-- 70% white -->
+
+    <!-- icon tint for small icon if it isn’t monochrome -->
+    <color name="ap_icon_tint">#FFFFFFFF</color>
+
+    <!-- progress colors; override per tenant if you want -->
+    <color name="ap_progress_tint">#22AAEE</color>
+    <color name="ap_progress_bg_tint">#4022AAEE</color> <!-- 25% alpha -->
+</resources>

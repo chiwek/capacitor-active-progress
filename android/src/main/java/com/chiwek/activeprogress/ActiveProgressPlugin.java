@@ -207,9 +207,6 @@ public class ActiveProgressPlugin extends Plugin {
             int smallIconRes
     ) {
         Context c = getContext();
-
-
-        Context c = getContext();
         String appPkg = c.getPackageName();
         int hostLayout = c.getResources().getIdentifier(
                 "notification_active_progress", "layout", appPkg);
@@ -231,16 +228,6 @@ public class ActiveProgressPlugin extends Plugin {
             content.setViewVisibility(R.id.ap_subtext, android.view.View.VISIBLE);
         } else {
             content.setViewVisibility(R.id.ap_subtext, android.view.View.GONE);
-        }
-
-        // brand color on progress drawable (uses tint on API 23+)
-        if (!isEmpty(accent)) {
-            try {
-                int color = Color.parseColor(accent);
-                content.setInt(R.id.ap_progress, "setIndeterminateTintList", android.content.res.ColorStateList.valueOf(color));
-                content.setInt(R.id.ap_progress, "setProgressTintList", android.content.res.ColorStateList.valueOf(color));
-                content.setInt(R.id.ap_progress, "setProgressBackgroundTintList", android.content.res.ColorStateList.valueOf(adjustAlpha(color, 0.25f)));
-            } catch (Exception ignored) {}
         }
 
         if (indeterminate) {
