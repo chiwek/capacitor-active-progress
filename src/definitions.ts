@@ -2,10 +2,14 @@ export interface StartOptions {
     orderId: string;
     title?: string;
     text?: string;
+    subText?: string;
+    style?: string;
+    silent?: boolean;
     progress?: number;            // 0..100
     etaSeconds?: number;
     accentColor?: string;         // "#RRGGBB"
     smallIcon?: string;           // Android: mipmap/drawable name
+    largeIcon?: string;           // Android: mipmap/drawable name
     channelId?: string;           // default: "active_progress"
     ongoing?: boolean;            // default: true (Android)
     indeterminate?: boolean;      // default: false (Android)

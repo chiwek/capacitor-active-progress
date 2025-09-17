@@ -4,148 +4,116 @@ import android.app.Notification;
 import android.app.NotificationChannel;
 import android.app.NotificationManager;
 import android.content.Context;
-import android.graphics.Color;
+import android.content.pm.PackageManager;
+import android.content.res.Resources;
 import android.os.Build;
+import android.widget.RemoteViews;
 
 import androidx.core.app.NotificationCompat;
 
+import com.getcapacitor.JSObject;
 import com.getcapacitor.Plugin;
 import com.getcapacitor.PluginCall;
 import com.getcapacitor.PluginMethod;
 import com.getcapacitor.annotation.CapacitorPlugin;
 
-import java.util.concurrent.ConcurrentHashMap;
+// IMPORTANT: import the plugin’s own R (matches the namespace!)
+import com.chiwek.activeprogress.R;
 
 @CapacitorPlugin(name = "ActiveProgress")
 public class ActiveProgressPlugin extends Plugin {
 
-    private static final String DEFAULT_CHANNEL = "active_progress";
-    private final ConcurrentHashMap<String, Integer> idMap = new ConcurrentHashMap<>();
-    private final ConcurrentHashMap<String, Integer> progressMap = new ConcurrentHashMap<>();
-    private int nextId = 1001;
+  private static final String DEFAULT_CHANNEL = "active_progress";
+  private NotificationManager nm;
 
-    @Override
-    public void load() {
-        createChannel(DEFAULT_CHANNEL, "Active Progress");
+  @Override
+  public void load() {
+    Context c = getContext();
+    nm = (NotificationManager) c.getSystemService(Context.NOTIFICATION_SERVICE);
+    if (Build.VERSION.SDK_INT >= 26) {
+      NotificationChannel ch = new NotificationChannel(
+          DEFAULT_CHANNEL, "Active Progress", NotificationManager.IMPORTANCE_LOW);
+      nm.createNotificationChannel(ch);
+    }
+  }
+
+  @PluginMethod
+  public void show(PluginCall call) {
+    String title = call.getString("title", "Working…");
+    String text  = call.getString("text",  "Please wait");
+    int progress = call.getInt("progress", 0);
+
+    Context appCtx = getContext();
+    String appPkg = appCtx.getPackageName();
+
+    // 1) Try to resolve a host-app override layout first
+    int layoutId = safeIdentifier(appCtx, appPkg, "notification_active_progress", "layout");
+
+    RemoteViews content;
+    String contentPkg;
+
+    if (layoutId != 0) {
+      // host app provided a layout with our expected IDs
+      content = new RemoteViews(appPkg, layoutId);
+      contentPkg = appPkg;
+    } else {
+      // fallback to plugin’s default layout
+      content = new RemoteViews(BuildConfig.LIBRARY_PACKAGE_NAME,
+          R.layout.notification_active_progress);
+      contentPkg = BuildConfig.LIBRARY_PACKAGE_NAME;
     }
 
-    @PluginMethod
-    public void start(PluginCall call) {
-        String orderId = call.getString("orderId");
-        if (orderId == null || orderId.isEmpty()) { call.reject("orderId required"); return; }
+    // Resolve IDs in whichever package owns the layout
+    Resources ownerRes = resourcesFor(contentPkg);
+    int idTitle    = id(ownerRes, contentPkg, "ap_title");
+    int idText     = id(ownerRes, contentPkg, "ap_text");
+    int idProgress = id(ownerRes, contentPkg, "ap_progress");
 
-        String title = valOr(call.getString("title"), "Driver on the way");
-        String text = valOr(call.getString("text"), "");
-        String channelId = valOr(call.getString("channelId"), DEFAULT_CHANNEL);
-        boolean ongoing = call.getBoolean("ongoing", true);
-        boolean indeterminate = call.getBoolean("indeterminate", false);
-        String smallIconName = valOr(call.getString("smallIcon"), "ic_launcher");
-        String accent = call.getString("accentColor");
+    content.setTextViewText(idTitle, title);
+    content.setTextViewText(idText,  text);
+    content.setProgressBar(idProgress, 100, progress, false);
 
-        NotificationManager nm = nm();
-        int notiId = idMap.computeIfAbsent(orderId, k -> nextId++);
-
-        NotificationCompat.Builder b = new NotificationCompat.Builder(getContext(), channelId)
-            .setContentTitle(title)
-            .setContentText(text)
-            .setSmallIcon(iconRes(smallIconName))
-            .setOngoing(ongoing)
+    NotificationCompat.Builder nb =
+        new NotificationCompat.Builder(appCtx, DEFAULT_CHANNEL)
+            .setSmallIcon(resolveSmallIcon()) // host override or plugin default
             .setOnlyAlertOnce(true)
-            .setPriority(NotificationCompat.PRIORITY_HIGH);
+            .setOngoing(true)
+            .setStyle(new NotificationCompat.DecoratedCustomViewStyle())
+            .setCustomContentView(content);
 
-        if (accent != null && !accent.isEmpty()) {
-            try { b.setColor(Color.parseColor(accent)); } catch (Exception ignored) {}
-        }
+    nm.notify(10123, nb.build());
+    call.resolve();
+  }
 
-        if (indeterminate) {
-            b.setProgress(0, 0, true);
-        } else {
-            int p = clamp(call.getInt("progress", 0), 0, 100);
-            progressMap.put(orderId, p);
-            b.setProgress(100, p, false);
-        }
+  private int resolveSmallIcon() {
+    // Try host app drawable "ic_stat_notify" first
+    Context c = getContext();
+    int host = safeIdentifier(c, c.getPackageName(), "ic_stat_notify", "drawable");
+    if (host != 0) return host;
+    // Fallback to plugin drawable
+    return R.drawable.ic_stat_notify;
+  }
 
-        nm.notify(notiId, b.build());
-        call.resolve();
+  private int safeIdentifier(Context ctx, String pkg, String name, String type) {
+    try {
+      Resources res = ctx.getPackageManager().getResourcesForApplication(pkg);
+      return res.getIdentifier(name, type, pkg);
+    } catch (PackageManager.NameNotFoundException e) {
+      return 0;
     }
+  }
 
-    @PluginMethod
-    public void update(PluginCall call) {
-        String orderId = call.getString("orderId");
-        if (orderId == null || orderId.isEmpty()) { call.reject("orderId required"); return; }
-        Integer id = idMap.get(orderId);
-        if (id == null) { call.resolve(); return; }
-
-        Notification existing = find(id);
-        String ch = (existing != null && Build.VERSION.SDK_INT >= 26 && existing.getChannelId() != null)
-                  ? existing.getChannelId() : DEFAULT_CHANNEL;
-
-        int smallIcon = (existing != null && existing.getSmallIcon() != null)
-                      ? existing.getSmallIcon().getResId()
-                      : iconRes("ic_launcher");
-
-        boolean wasOngoing = existing != null && (existing.flags & Notification.FLAG_ONGOING_EVENT) != 0;
-        String prevTitle = existing != null ? existing.extras.getString(Notification.EXTRA_TITLE) : null;
-        String prevText  = existing != null ? existing.extras.getString(Notification.EXTRA_TEXT) : null;
-
-        String title = valOr(call.getString("title"), prevTitle);
-        String text  = valOr(call.getString("text"),  prevText);
-
-        NotificationCompat.Builder b = new NotificationCompat.Builder(getContext(), ch)
-            .setSmallIcon(smallIcon)
-            .setOnlyAlertOnce(true)
-            .setPriority(NotificationCompat.PRIORITY_HIGH)
-            .setOngoing(wasOngoing)
-            .setContentTitle(title)
-            .setContentText(text);
-
-        if (call.getData().has("progress")) {
-            int p = clamp(call.getInt("progress", 0), 0, 100);
-            progressMap.put(orderId, p);
-            b.setProgress(100, p, false);
-        } else {
-            Integer prev = progressMap.get(orderId);
-            if (prev != null) b.setProgress(100, clamp(prev, 0, 100), false);
-        }
-
-        nm().notify(id, b.build());
-        call.resolve();
+  private Resources resourcesFor(String pkg) {
+    try {
+      return getContext().getPackageManager().getResourcesForApplication(pkg);
+    } catch (PackageManager.NameNotFoundException e) {
+      return getContext().getResources();
     }
+  }
 
-    @PluginMethod
-    public void stop(PluginCall call) {
-        String orderId = call.getString("orderId");
-        if (orderId == null || orderId.isEmpty()) { call.reject("orderId required"); return; }
-        Integer id = idMap.remove(orderId);
-        progressMap.remove(orderId);
-        if (id != null) nm().cancel(id);
-        call.resolve();
-    }
-
-    // Helpers
-    private NotificationManager nm() {
-        return (NotificationManager) getContext().getSystemService(Context.NOTIFICATION_SERVICE);
-    }
-    private void createChannel(String id, String name) {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            nm().createNotificationChannel(new NotificationChannel(id, name, NotificationManager.IMPORTANCE_HIGH));
-        }
-    }
-    private Notification find(int id) {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-            for (android.service.notification.StatusBarNotification sbn : nm().getActiveNotifications()) {
-                if (sbn.getId() == id) return sbn.getNotification();
-            }
-        }
-        return null;
-    }
-    private int iconRes(String name) {
-        Context c = getContext();
-        int r = c.getResources().getIdentifier(name, "mipmap", c.getPackageName());
-        if (r == 0) r = c.getResources().getIdentifier(name, "drawable", c.getPackageName());
-        if (r == 0) r = android.R.drawable.stat_sys_download;
-        return r;
-    }
-    private static int clamp(int v, int min, int max) { return Math.max(min, Math.min(max, v)); }
-    private static String valOr(String v, String d) { return (v == null || v.isEmpty()) ? d : v; }
+  private int id(Resources res, String pkg, String name) {
+    int out = res.getIdentifier(name, "id", pkg);
+    if (out == 0) throw new IllegalStateException("Missing id @" + name + " in " + pkg);
+    return out;
+  }
 }
