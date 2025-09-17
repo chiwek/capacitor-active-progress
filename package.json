@@ -5,7 +5,7 @@
     "type": "git",
     "url": "git+https://github.com/chiwek/capacitor-active-progress.git"
   },
-  "version": "1.0.5",
+  "version": "1.0.6",
   "description": "Capacitor plugin for active progress notifications (Android progress bar, iOS Live Activity planned).",
   "main": "dist/esm/index.js",
   "types": "dist/esm/index.d.ts",
