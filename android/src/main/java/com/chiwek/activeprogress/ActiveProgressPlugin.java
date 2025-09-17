@@ -174,7 +174,6 @@ public class ActiveProgressPlugin extends Plugin {
         }
 
         Bitmap li = largeIcon(largeIconName);
-        if (li != null) b.setLargeIcon(li);
 
         if ("custom".equalsIgnoreCase(style)) {
             applyCustomRemoteViews(b, title, text, subText, indeterminate, progress, accent, largeIconName, smallIcon);
